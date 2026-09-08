@@ -1,0 +1,699 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>GempaRadar — Monitor Seismik Indonesia</title>
+<link href="https://fonts.googleapis.com/css2?family=Share+Tech+Mono&family=Barlow+Condensed:wght@300;400;600;700;900&display=swap" rel="stylesheet">
+<style>
+:root {
+  --bg:       #07080d;
+  --surface:  #0e1018;
+  --panel:    #12151f;
+  --border:   #1e2535;
+  --accent:   #ff4e1a;
+  --accent2:  #ff8c42;
+  --safe:     #2ecc71;
+  --warn:     #f39c12;
+  --danger:   #e74c3c;
+  --text:     #d4dce8;
+  --muted:    #5a6478;
+  --mono:     'Share Tech Mono', monospace;
+  --sans:     'Barlow Condensed', sans-serif;
+}
+
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+body {
+  background: var(--bg);
+  color: var(--text);
+  font-family: var(--sans);
+  min-height: 100vh;
+  overflow-x: hidden;
+}
+
+/* Seismic wave background */
+body::before {
+  content: '';
+  position: fixed;
+  inset: 0;
+  background:
+    repeating-linear-gradient(0deg, transparent, transparent 59px, #1a1f2e22 60px),
+    repeating-linear-gradient(90deg, transparent, transparent 59px, #1a1f2e22 60px);
+  pointer-events: none;
+  z-index: 0;
+}
+
+/* ── Header ── */
+header {
+  position: relative;
+  z-index: 10;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 18px 32px;
+  border-bottom: 1px solid var(--border);
+  background: linear-gradient(180deg, #0a0c14 0%, transparent 100%);
+}
+
+.logo {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+}
+
+.logo-icon {
+  width: 42px; height: 42px;
+  background: var(--accent);
+  clip-path: polygon(50% 0%, 100% 38%, 82% 100%, 18% 100%, 0% 38%);
+  display: flex; align-items: center; justify-content: center;
+  font-size: 18px; font-weight: 900;
+  animation: pulse-icon 2s ease-in-out infinite;
+}
+
+@keyframes pulse-icon {
+  0%, 100% { box-shadow: 0 0 0 0 #ff4e1a44; }
+  50%       { box-shadow: 0 0 0 12px #ff4e1a00; }
+}
+
+.logo-text h1 {
+  font-size: 28px; font-weight: 900; letter-spacing: 2px;
+  color: #fff; line-height: 1;
+}
+
+.logo-text p {
+  font-size: 11px; letter-spacing: 3px; color: var(--accent);
+  text-transform: uppercase; font-weight: 600;
+}
+
+.header-status {
+  display: flex; align-items: center; gap: 24px;
+  font-family: var(--mono); font-size: 12px; color: var(--muted);
+}
+
+.status-dot {
+  width: 8px; height: 8px; border-radius: 50%;
+  background: var(--safe);
+  box-shadow: 0 0 8px var(--safe);
+  animation: blink 1.2s ease-in-out infinite;
+}
+
+@keyframes blink {
+  0%, 100% { opacity: 1; } 50% { opacity: 0.3; }
+}
+
+/* ── Layout ── */
+.main {
+  position: relative; z-index: 1;
+  padding: 24px 32px;
+  display: grid;
+  grid-template-columns: 1fr 1fr 1fr;
+  grid-template-rows: auto auto auto;
+  gap: 20px;
+}
+
+/* ── Stats Bar ── */
+.stats-bar {
+  grid-column: 1 / -1;
+  display: grid;
+  grid-template-columns: repeat(5, 1fr);
+  gap: 12px;
+}
+
+.stat-card {
+  background: var(--panel);
+  border: 1px solid var(--border);
+  border-top: 2px solid var(--accent);
+  padding: 16px 20px;
+  display: flex; flex-direction: column; gap: 4px;
+  position: relative; overflow: hidden;
+}
+
+.stat-card::after {
+  content: '';
+  position: absolute; bottom: 0; left: 0; right: 0;
+  height: 1px;
+  background: linear-gradient(90deg, transparent, var(--accent), transparent);
+  opacity: 0.4;
+}
+
+.stat-label {
+  font-size: 10px; letter-spacing: 2px; text-transform: uppercase;
+  color: var(--muted); font-weight: 600;
+}
+
+.stat-value {
+  font-family: var(--mono); font-size: 28px; color: #fff;
+  line-height: 1; font-weight: 400;
+}
+
+.stat-sub {
+  font-size: 11px; color: var(--muted);
+}
+
+/* ── Panel ── */
+.panel {
+  background: var(--panel);
+  border: 1px solid var(--border);
+  display: flex; flex-direction: column;
+}
+
+.panel-header {
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 14px 20px;
+  border-bottom: 1px solid var(--border);
+  background: #0a0d14;
+}
+
+.panel-title {
+  font-size: 13px; font-weight: 700; letter-spacing: 2px;
+  text-transform: uppercase; color: var(--accent2);
+  display: flex; align-items: center; gap: 8px;
+}
+
+.panel-badge {
+  font-family: var(--mono); font-size: 10px;
+  background: var(--border); color: var(--muted);
+  padding: 2px 8px; border-radius: 2px;
+}
+
+.panel-body { padding: 16px 20px; flex: 1; overflow: hidden; }
+
+/* Panel spanning */
+.panel-wide   { grid-column: span 2; }
+.panel-full   { grid-column: 1 / -1; }
+
+/* ── Magnitude Chart ── */
+.mag-bars { display: flex; flex-direction: column; gap: 12px; }
+
+.mag-row {
+  display: grid;
+  grid-template-columns: 160px 1fr 60px;
+  align-items: center; gap: 12px;
+}
+
+.mag-label { font-size: 12px; color: var(--text); }
+.mag-bar-track { height: 8px; background: var(--border); border-radius: 1px; overflow: hidden; }
+
+.mag-bar-fill {
+  height: 100%; border-radius: 1px;
+  transition: width 1s ease;
+}
+
+.mag-count { font-family: var(--mono); font-size: 12px; color: var(--muted); text-align: right; }
+
+.color-mikro  { background: var(--safe); }
+.color-minor  { background: #27ae60; }
+.color-sedang { background: var(--warn); }
+.color-kuat   { background: var(--danger); }
+
+/* ── Wilayah Table ── */
+.wilayah-table { width: 100%; border-collapse: collapse; font-size: 12px; }
+.wilayah-table th {
+  text-align: left; padding: 8px 10px;
+  font-size: 10px; letter-spacing: 1.5px; text-transform: uppercase;
+  color: var(--muted); font-weight: 600; border-bottom: 1px solid var(--border);
+}
+.wilayah-table td { padding: 9px 10px; border-bottom: 1px solid #1a1f2e; }
+.wilayah-table tr:hover td { background: #1a1f2e44; }
+
+.rank-badge {
+  width: 22px; height: 22px; border-radius: 2px;
+  background: var(--border); display: inline-flex;
+  align-items: center; justify-content: center;
+  font-family: var(--mono); font-size: 10px; color: var(--muted);
+}
+
+.rank-badge.top1 { background: var(--accent); color: #fff; }
+.rank-badge.top2 { background: #cc3d12; color: #fff; }
+.rank-badge.top3 { background: #993010; color: #fff; }
+
+/* ── Kedalaman ── */
+.depth-rows { display: flex; flex-direction: column; gap: 16px; }
+
+.depth-item {
+  display: flex; flex-direction: column; gap: 6px;
+}
+
+.depth-header {
+  display: flex; justify-content: space-between; align-items: center;
+}
+
+.depth-name { font-size: 13px; color: var(--text); font-weight: 600; }
+.depth-count { font-family: var(--mono); font-size: 12px; color: var(--muted); }
+
+.depth-bar-track { height: 6px; background: var(--border); border-radius: 1px; }
+.depth-bar-fill  { height: 100%; border-radius: 1px; background: var(--accent2); transition: width 1s ease; }
+
+.depth-stats { font-family: var(--mono); font-size: 10px; color: var(--muted); }
+
+/* ── Live Feed ── */
+.live-feed { display: flex; flex-direction: column; gap: 8px; max-height: 340px; overflow-y: auto; }
+.live-feed::-webkit-scrollbar { width: 3px; }
+.live-feed::-webkit-scrollbar-thumb { background: var(--border); }
+
+.quake-card {
+  display: grid;
+  grid-template-columns: 56px 1fr auto;
+  gap: 12px; align-items: center;
+  padding: 10px 14px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-left: 3px solid var(--border);
+  transition: border-color 0.3s;
+}
+
+.quake-card.kuat   { border-left-color: var(--danger); }
+.quake-card.sedang { border-left-color: var(--warn); }
+.quake-card.minor  { border-left-color: #27ae60; }
+.quake-card.mikro  { border-left-color: var(--safe); }
+
+.mag-circle {
+  width: 48px; height: 48px; border-radius: 50%;
+  display: flex; align-items: center; justify-content: center;
+  font-family: var(--mono); font-size: 16px; font-weight: bold; color: #fff;
+  flex-shrink: 0;
+}
+
+.mag-circle.kuat   { background: var(--danger); box-shadow: 0 0 12px #e74c3c55; }
+.mag-circle.sedang { background: var(--warn);   box-shadow: 0 0 12px #f39c1255; }
+.mag-circle.minor  { background: #27ae60;        box-shadow: 0 0 8px #27ae6033; }
+.mag-circle.mikro  { background: #1e6e42; }
+
+.quake-info { overflow: hidden; }
+.quake-place { font-size: 12px; color: var(--text); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.quake-meta  { font-family: var(--mono); font-size: 10px; color: var(--muted); margin-top: 2px; }
+
+.quake-depth {
+  font-family: var(--mono); font-size: 10px;
+  color: var(--muted); text-align: right; white-space: nowrap;
+}
+
+/* ── News Feed ── */
+.news-feed { display: flex; flex-direction: column; gap: 10px; }
+
+.news-item {
+  display: flex; gap: 12px;
+  padding: 10px 0; border-bottom: 1px solid var(--border);
+}
+
+.news-source-badge {
+  flex-shrink: 0;
+  font-size: 9px; letter-spacing: 1px; text-transform: uppercase;
+  padding: 3px 7px; border-radius: 2px; font-weight: 700;
+  height: fit-content; margin-top: 2px;
+}
+
+.source-bmkg   { background: #1a3a6b; color: #5fa8ff; }
+.source-tempo  { background: #3a1a1a; color: #ff7c7c; }
+.source-other  { background: var(--border); color: var(--muted); }
+
+.news-title {
+  font-size: 12px; line-height: 1.5; color: var(--text);
+}
+
+.news-title a { color: inherit; text-decoration: none; }
+.news-title a:hover { color: var(--accent2); }
+
+.news-time { font-family: var(--mono); font-size: 10px; color: var(--muted); margin-top: 3px; }
+
+/* ── Footer ── */
+footer {
+  position: relative; z-index: 1;
+  padding: 14px 32px;
+  border-top: 1px solid var(--border);
+  display: flex; justify-content: space-between; align-items: center;
+  font-family: var(--mono); font-size: 10px; color: var(--muted);
+}
+
+.seismic-wave {
+  display: flex; align-items: center; gap: 2px;
+  height: 20px;
+}
+
+.wave-bar {
+  width: 3px; background: var(--accent);
+  border-radius: 1px; opacity: 0.6;
+  animation: wave-anim 1.2s ease-in-out infinite;
+}
+
+.wave-bar:nth-child(1) { height: 4px;  animation-delay: 0s; }
+.wave-bar:nth-child(2) { height: 10px; animation-delay: 0.1s; }
+.wave-bar:nth-child(3) { height: 18px; animation-delay: 0.2s; }
+.wave-bar:nth-child(4) { height: 12px; animation-delay: 0.3s; }
+.wave-bar:nth-child(5) { height: 6px;  animation-delay: 0.4s; }
+.wave-bar:nth-child(6) { height: 14px; animation-delay: 0.5s; }
+.wave-bar:nth-child(7) { height: 8px;  animation-delay: 0.6s; }
+
+@keyframes wave-anim {
+  0%, 100% { transform: scaleY(1); opacity: 0.6; }
+  50%       { transform: scaleY(0.3); opacity: 0.2; }
+}
+
+/* New event flash */
+@keyframes flash-in {
+  0%   { background: #ff4e1a22; }
+  100% { background: transparent; }
+}
+.new-event { animation: flash-in 1.5s ease; }
+
+/* Scrollbar */
+.wilayah-table-wrapper { max-height: 280px; overflow-y: auto; }
+.wilayah-table-wrapper::-webkit-scrollbar { width: 3px; }
+.wilayah-table-wrapper::-webkit-scrollbar-thumb { background: var(--border); }
+</style>
+</head>
+<body>
+
+<header>
+  <div class="logo">
+    <div class="logo-icon">🌋</div>
+    <div class="logo-text">
+      <h1>GEMPARADAR</h1>
+      <p>Monitor Seismik Indonesia · Real-time</p>
+    </div>
+  </div>
+  <div class="header-status">
+    <div class="status-dot"></div>
+    <span id="server-time">--</span>
+    <span>·</span>
+    <span>USGS + BMKG</span>
+    <span>·</span>
+    <span id="refresh-countdown">refresh dalam 30s</span>
+  </div>
+</header>
+
+<main class="main">
+
+  <!-- Stats Bar -->
+  <div class="stats-bar">
+    <div class="stat-card">
+      <div class="stat-label">Total Event</div>
+      <div class="stat-value" id="stat-total">—</div>
+      <div class="stat-sub">selama monitoring</div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-label">Gempa Kuat (≥5.0)</div>
+      <div class="stat-value" id="stat-kuat" style="color:var(--danger)">—</div>
+      <div class="stat-sub">magnitude ≥ 5.0</div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-label">Live — Gempa Terbaru</div>
+      <div class="stat-value" id="stat-latest-mag" style="color:var(--accent2)">—</div>
+      <div class="stat-sub" id="stat-latest-place">memuat data...</div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-label">Wilayah Paling Aktif</div>
+      <div class="stat-value" style="font-size:16px;padding-top:4px" id="stat-top-region">—</div>
+      <div class="stat-sub">frekuensi tertinggi</div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-label">Berita Terbaru</div>
+      <div class="stat-value" id="stat-news-count">—</div>
+      <div class="stat-sub">artikel gempa</div>
+    </div>
+  </div>
+
+  <!-- Panel 1: Distribusi Magnitudo (Analisis 1) -->
+  <div class="panel">
+    <div class="panel-header">
+      <div class="panel-title">📊 Distribusi Magnitudo</div>
+      <div class="panel-badge">SPARK ANALISIS 1</div>
+    </div>
+    <div class="panel-body">
+      <div class="mag-bars" id="mag-bars">
+        <div style="color:var(--muted);font-size:12px">Memuat data Spark...</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Panel 2: Wilayah Aktif (Analisis 2) -->
+  <div class="panel panel-wide">
+    <div class="panel-header">
+      <div class="panel-title">📍 Wilayah Paling Aktif</div>
+      <div class="panel-badge">SPARK ANALISIS 2 · TOP 10</div>
+    </div>
+    <div class="panel-body" style="padding:0">
+      <div class="wilayah-table-wrapper">
+        <table class="wilayah-table">
+          <thead>
+            <tr>
+              <th>#</th>
+              <th>Wilayah</th>
+              <th>Jumlah</th>
+              <th>Rata-rata Mag</th>
+              <th>Gempa Kuat</th>
+            </tr>
+          </thead>
+          <tbody id="wilayah-tbody">
+            <tr><td colspan="5" style="color:var(--muted);padding:20px;text-align:center">Memuat data Spark...</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+  <!-- Panel 3: Distribusi Kedalaman (Analisis 3) -->
+  <div class="panel">
+    <div class="panel-header">
+      <div class="panel-title">⬇️ Distribusi Kedalaman</div>
+      <div class="panel-badge">SPARK ANALISIS 3</div>
+    </div>
+    <div class="panel-body">
+      <div class="depth-rows" id="depth-rows">
+        <div style="color:var(--muted);font-size:12px">Memuat data Spark...</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Panel 4: Live Gempa -->
+  <div class="panel panel-wide">
+    <div class="panel-header">
+      <div class="panel-title">🔴 Live — Gempa Terkini</div>
+      <div class="panel-badge">KAFKA · REAL-TIME</div>
+    </div>
+    <div class="panel-body">
+      <div class="live-feed" id="live-feed">
+        <div style="color:var(--muted);font-size:12px">Menunggu data real-time dari Kafka...</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Panel 5: Berita -->
+  <div class="panel">
+    <div class="panel-header">
+      <div class="panel-title">📰 Berita Gempa Terbaru</div>
+      <div class="panel-badge">RSS · BMKG + TEMPO</div>
+    </div>
+    <div class="panel-body">
+      <div class="news-feed" id="news-feed">
+        <div style="color:var(--muted);font-size:12px">Memuat berita...</div>
+      </div>
+    </div>
+  </div>
+
+</main>
+
+<footer>
+  <div style="display:flex;align-items:center;gap:12px">
+    <div class="seismic-wave">
+      <div class="wave-bar"></div><div class="wave-bar"></div>
+      <div class="wave-bar"></div><div class="wave-bar"></div>
+      <div class="wave-bar"></div><div class="wave-bar"></div>
+      <div class="wave-bar"></div>
+    </div>
+    <span>GempaRadar · Big Data Pipeline · Kelompok [X]</span>
+  </div>
+  <span>Sumber: USGS Earthquake API + BMKG RSS + Tempo RSS</span>
+  <span id="last-updated">Belum diperbarui</span>
+</footer>
+
+<script>
+// ── Helpers ────────────────────────────────────────────────────────────────
+function getMagClass(mag) {
+  if (mag >= 5.0) return 'kuat';
+  if (mag >= 4.0) return 'sedang';
+  if (mag >= 3.0) return 'minor';
+  return 'mikro';
+}
+
+function formatTime(isoStr) {
+  if (!isoStr) return '—';
+  try {
+    const d = new Date(isoStr);
+    return d.toLocaleString('id-ID', { timeZone: 'Asia/Jakarta',
+      day:'2-digit', month:'short', hour:'2-digit', minute:'2-digit' });
+  } catch { return isoStr; }
+}
+
+// ── Render Functions ───────────────────────────────────────────────────────
+function renderMagBars(data) {
+  if (!data || !data.length) return;
+  const maxJumlah = Math.max(...data.map(d => d.jumlah));
+  const colorMap = {
+    'Mikro (< 3.0)': 'color-mikro',
+    'Minor (3.0–3.9)': 'color-minor',
+    'Sedang (4.0–4.9)': 'color-sedang',
+    'Kuat (≥ 5.0)': 'color-kuat',
+  };
+  const html = data.map(d => {
+    const pct = Math.round((d.jumlah / maxJumlah) * 100);
+    const cls = colorMap[d.kategori_mag] || 'color-mikro';
+    return `
+      <div class="mag-row">
+        <div class="mag-label">${d.kategori_mag} <span style="color:var(--muted);font-size:10px">(${d.persentase}%)</span></div>
+        <div class="mag-bar-track"><div class="mag-bar-fill ${cls}" style="width:${pct}%"></div></div>
+        <div class="mag-count">${d.jumlah}</div>
+      </div>`;
+  }).join('');
+  document.getElementById('mag-bars').innerHTML = html;
+}
+
+function renderWilayah(data) {
+  if (!data || !data.length) return;
+  const tbody = document.getElementById('wilayah-tbody');
+  tbody.innerHTML = data.map((d, i) => {
+    const rankClass = i === 0 ? 'top1' : i === 1 ? 'top2' : i === 2 ? 'top3' : '';
+    return `<tr>
+      <td><span class="rank-badge ${rankClass}">${i+1}</span></td>
+      <td style="max-width:200px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${d.wilayah}</td>
+      <td style="font-family:var(--mono);color:#fff">${d.jumlah_gempa}</td>
+      <td style="font-family:var(--mono)">${d.rata_rata_mag}</td>
+      <td style="font-family:var(--mono);color:${d.gempa_kuat > 0 ? 'var(--danger)' : 'var(--muted)'}">${d.gempa_kuat}</td>
+    </tr>`;
+  }).join('');
+}
+
+function renderDepth(data) {
+  if (!data || !data.length) return;
+  const maxJ = Math.max(...data.map(d => d.jumlah));
+  const html = data.map(d => {
+    const pct = Math.round((d.jumlah / maxJ) * 100);
+    return `
+      <div class="depth-item">
+        <div class="depth-header">
+          <div class="depth-name">${d.kategori_kedalaman}</div>
+          <div class="depth-count">${d.jumlah} gempa</div>
+        </div>
+        <div class="depth-bar-track"><div class="depth-bar-fill" style="width:${pct}%"></div></div>
+        <div class="depth-stats">Rata-rata: ${d.rata_rata_depth_km} km · Range: ${d.min_depth_km}–${d.max_depth_km} km · Avg Mag: ${d.rata_rata_mag}</div>
+      </div>`;
+  }).join('');
+  document.getElementById('depth-rows').innerHTML = html;
+}
+
+function renderLiveFeed(events) {
+  if (!events || !events.length) {
+    document.getElementById('live-feed').innerHTML =
+      '<div style="color:var(--muted);font-size:12px">Belum ada data live dari Kafka...</div>';
+    return;
+  }
+  const html = events.map((e, i) => {
+    const mag = parseFloat(e.magnitude) || 0;
+    const cls = getMagClass(mag);
+    return `
+      <div class="quake-card ${cls} ${i === 0 ? 'new-event' : ''}">
+        <div class="mag-circle ${cls}">${mag.toFixed(1)}</div>
+        <div class="quake-info">
+          <div class="quake-place">${e.place || '—'}</div>
+          <div class="quake-meta">${formatTime(e.timestamp)} · ${e.status || 'reviewed'}</div>
+        </div>
+        <div class="quake-depth">
+          <div>${e.depth_km ? e.depth_km.toFixed(0) + ' km' : '—'}</div>
+          <div style="color:${e.tsunami ? 'var(--danger)' : 'var(--muted)'}">
+            ${e.tsunami ? '⚠️ TSU' : 'no tsunami'}
+          </div>
+        </div>
+      </div>`;
+  }).join('');
+  document.getElementById('live-feed').innerHTML = html;
+}
+
+function renderNews(articles) {
+  if (!articles || !articles.length) {
+    document.getElementById('news-feed').innerHTML =
+      '<div style="color:var(--muted);font-size:12px">Belum ada berita...</div>';
+    return;
+  }
+  const html = articles.map(a => {
+    const srcClass = a.source === 'BMKG' ? 'source-bmkg' :
+                     a.source === 'Tempo' ? 'source-tempo' : 'source-other';
+    return `
+      <div class="news-item">
+        <span class="news-source-badge ${srcClass}">${a.source || 'RSS'}</span>
+        <div>
+          <div class="news-title">
+            <a href="${a.url || '#'}" target="_blank" rel="noopener">${a.title || 'Tanpa judul'}</a>
+          </div>
+          <div class="news-time">${formatTime(a.published)}</div>
+        </div>
+      </div>`;
+  }).join('');
+  document.getElementById('news-feed').innerHTML = html;
+}
+
+function updateStats(spark, liveApi, liveRss) {
+  // Dari Spark
+  if (spark && spark.total_events) {
+    document.getElementById('stat-total').textContent = spark.total_events.toLocaleString('id');
+  }
+  if (spark && spark.analisis_1_distribusi_magnitudo) {
+    const kuat = spark.analisis_1_distribusi_magnitudo.find(d => d.kategori_mag === 'Kuat (≥ 5.0)');
+    document.getElementById('stat-kuat').textContent = kuat ? kuat.jumlah : '0';
+  }
+  if (spark && spark.analisis_2_wilayah_aktif && spark.analisis_2_wilayah_aktif.length) {
+    document.getElementById('stat-top-region').textContent =
+      spark.analisis_2_wilayah_aktif[0].wilayah.substring(0, 20) + '...';
+  }
+
+  // Dari live
+  if (liveApi && liveApi.length) {
+    const latest = liveApi[0];
+    document.getElementById('stat-latest-mag').textContent =
+      (parseFloat(latest.magnitude) || 0).toFixed(1);
+    document.getElementById('stat-latest-place').textContent =
+      (latest.place || '').substring(0, 24) + '...';
+  }
+  if (liveRss) {
+    document.getElementById('stat-news-count').textContent = liveRss.length;
+  }
+}
+
+// ── Main Fetch ─────────────────────────────────────────────────────────────
+async function fetchData() {
+  try {
+    const res  = await fetch('/api/data');
+    const data = await res.json();
+
+    renderMagBars(data.spark?.analisis_1_distribusi_magnitudo);
+    renderWilayah(data.spark?.analisis_2_wilayah_aktif);
+    renderDepth(data.spark?.analisis_3_distribusi_kedalaman);
+    renderLiveFeed(data.live_api);
+    renderNews(data.live_rss);
+    updateStats(data.spark, data.live_api, data.live_rss);
+
+    document.getElementById('server-time').textContent = data.server_time || '—';
+    document.getElementById('last-updated').textContent =
+      'Diperbarui: ' + new Date().toLocaleTimeString('id-ID');
+  } catch (err) {
+    console.error('Fetch error:', err);
+  }
+}
+
+// ── Countdown & Auto-refresh ───────────────────────────────────────────────
+let countdown = 30;
+function updateCountdown() {
+  countdown--;
+  document.getElementById('refresh-countdown').textContent = `refresh dalam ${countdown}s`;
+  if (countdown <= 0) {
+    countdown = 30;
+    fetchData();
+  }
+}
+
+// Initial load
+fetchData();
+setInterval(updateCountdown, 1000);
+</script>
+</body>
+</html>

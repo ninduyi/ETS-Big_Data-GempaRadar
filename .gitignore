@@ -1,0 +1,24 @@
+# Data files (auto-generated, tidak perlu di-push)
+dashboard/data/
+/tmp/gemparadar/
+
+# Python
+__pycache__/
+*.pyc
+*.pyo
+.env
+venv/
+*.egg-info/
+
+# Jupyter checkpoints
+.ipynb_checkpoints/
+
+# IDE
+.vscode/
+.idea/
+*.Zone.Identifier
+*.Zone.Identifier
+*:Zone.Identifier
+spark/data/
+dashboard/data/
+*.json
